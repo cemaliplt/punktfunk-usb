@@ -153,14 +153,6 @@ public struct StoredHost: Identifiable, Codable, Hashable, Sendable {
         try c.encodeIfPresent(gamePresets, forKey: .gamePresets)
         try c.encodeIfPresent(viaUSB, forKey: .viaUSB)
     }
-        try c.encodeIfPresent(presetID, forKey: .profileID)
-        try c.encodeIfPresent(pinnedPresetIDs, forKey: .pinnedProfileIDs)
-        try c.encodeIfPresent(addedAt, forKey: .addedAt)
-        try c.encodeIfPresent(osChain, forKey: .osChain)
-        try c.encodeIfPresent(previousAddresses, forKey: .previousAddresses)
-        try c.encodeIfPresent(pickedProfile, forKey: .pickedProfile)
-        try c.encodeIfPresent(gamePresets, forKey: .gamePresets)
-    }
 
     public var displayName: String { name.isEmpty ? address : name }
     public var effectiveMgmtPort: UInt16 { mgmtPort ?? punktfunkDefaultMgmtPort }
