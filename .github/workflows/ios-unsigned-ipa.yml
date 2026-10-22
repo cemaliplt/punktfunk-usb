@@ -14,11 +14,9 @@ concurrency:
 
 jobs:
   ipa:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 180
     env:
-      XCODE_APP: /Applications/Xcode_26.5.app
-      XCODE_DEV_DIR: /Applications/Xcode_26.5.app/Contents/Developer
       CARGO_TARGET_DIR: ${{ github.workspace }}/.ci-target
     steps:
       - uses: actions/checkout@v7
@@ -30,8 +28,19 @@ jobs:
 
       - name: Xcode seç ve doğrula
         run: |
-          test -d "$XCODE_APP" || { echo "::error::$XCODE_APP yok"; ls /Applications; exit 1; }
-          sudo xcode-select -s "$XCODE_DEV_DIR"
+          DEV_DIR=""
+          for app in /Applications/Xcode.app /Applications/Xcode_*.app /Applications/Xcode-*.app; do
+            case "$app" in *beta*|*Beta*) continue;; esac
+            [ -x "$app/Contents/Developer/usr/bin/xcodebuild" ] && DEV_DIR="$app/Contents/Developer" && break
+          done
+          if [ -z "$DEV_DIR" ]; then
+            for app in /Applications/Xcode*.app; do
+              [ -x "$app/Contents/Developer/usr/bin/xcodebuild" ] && DEV_DIR="$app/Contents/Developer" && break
+            done
+          fi
+          [ -n "$DEV_DIR" ] || DEV_DIR="$(xcode-select -p)"
+          sudo xcode-select -s "$DEV_DIR"
+          echo "XCODE_DEV_DIR=$DEV_DIR" >> "$GITHUB_ENV"
           xcodebuild -version
           xcodebuild -showsdks | grep -i iphoneos || true
 
