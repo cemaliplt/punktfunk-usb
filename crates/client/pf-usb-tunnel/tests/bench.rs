@@ -274,3 +274,56 @@ fn small_packet_floor() {
         l.pct(1.0)
     );
 }
+
+/// The video direction over a link slower than the offered rate (a stand-in for a congested
+/// cable): the carrier is throttled to `PF_BENCH_LINK_MBIT` (default 100) while the host offers
+/// `PF_BENCH_MBIT` (default 150). The queue must hold the delay to its cap and show the
+/// shortfall as media tail drops, never as an ever-growing delay. Kernel socket buffers on the
+/// loopback path add some queueing outside our queue, as they would on a real cable.
+#[test]
+#[ignore]
+fn video_direction_throttled_link() {
+    let mbit = env_u64("PF_BENCH_MBIT", 150);
+    let link = env_u64("PF_BENCH_LINK_MBIT", 100);
+    let secs = env_u64("PF_BENCH_SECS", 10);
+    let host = UdpSocket::bind((LO, 0)).unwrap();
+    host.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    let relay = relay::start_with({
+        let mut c = relay_cfg();
+        c.timing = Default::default();
+        c
+    })
+    .unwrap();
+    let proxy = Proxy::start_limited(relay.tcp_addr(), Some(link * 1_000_000 / 8));
+    let mut bc = bridge_cfg(host.local_addr().unwrap());
+    bc.timing = Default::default();
+    bc.queue.media_cap_bytes = env_u64("PF_BENCH_QUEUE_KIB", 512) as usize * 1024;
+    let bridge = bridge::start(Box::new(TcpConnector(proxy.addr)), bc).unwrap();
+    wait_until("carrier", 5, || relay.carrier_up() && bridge.carrier_up());
+    let client = UdpSocket::bind((LO, 0)).unwrap();
+    client.connect(relay.udp_addr()).unwrap();
+    let base = Instant::now();
+    let stop = Arc::new(AtomicBool::new(false));
+    let rx = receiver(client.try_clone().unwrap(), base, stop.clone());
+    client.send(&[0x4A; 100]).unwrap();
+    let mut b = [0u8; 2048];
+    let (_, flow_src) = host.recv_from(&mut b).unwrap();
+    let sent = pace_send(&host, Some(flow_src), mbit, secs, base);
+    thread::sleep(Duration::from_millis(800));
+    stop.store(true, Ordering::SeqCst);
+    let (got, mut lat, reordered) = rx.join().unwrap();
+    report(
+        &format!("host->client over a {link} Mbit/s link"),
+        sent,
+        got,
+        &mut lat,
+        reordered,
+        mbit,
+        secs,
+    );
+    let s = bridge.stats();
+    eprintln!(
+        "BENCH bridge counters: media tail drops {}, stale drops {}, quic drops {}, media queue peak {} B (cap {} B)",
+        s.drop_media_overflow, s.drop_media_stale, s.drop_quic_overflow, s.media_q_peak, env_u64("PF_BENCH_QUEUE_KIB", 512) * 1024
+    );
+}

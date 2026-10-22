@@ -160,7 +160,24 @@ pub struct Proxy {
 
 impl Proxy {
     pub fn start(target: SocketAddr) -> Proxy {
-        let l = TcpListener::bind((LO, 0)).unwrap();
+        Proxy::start_limited(target, None)
+    }
+
+    /// `limit_bps`: bytes per second allowed from the bridge side towards the relay (the video
+    /// direction); `None` = unlimited.
+    pub fn start_limited(target: SocketAddr, limit_bps: Option<u64>) -> Proxy {
+        let l = {
+            use socket2::{Domain, Protocol, Socket, Type};
+            let sock = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP)).unwrap();
+            if limit_bps.is_some() {
+                // A real cable has small buffers; without this the loopback proxy's autotuned
+                // receive window would hide megabytes of queue outside the tunnel's own.
+                sock.set_recv_buffer_size(64 * 1024).unwrap();
+            }
+            sock.bind(&SocketAddr::from((LO, 0)).into()).unwrap();
+            sock.listen(16).unwrap();
+            TcpListener::from(sock)
+        };
         let addr = l.local_addr().unwrap();
         let conns: Arc<Mutex<Vec<TcpStream>>> = Arc::default();
         let blocked = Arc::new(AtomicBool::new(false));
@@ -183,8 +200,8 @@ impl Proxy {
                 let _ = b.set_nodelay(true);
                 c2.lock().unwrap().push(a.try_clone().unwrap());
                 c2.lock().unwrap().push(b.try_clone().unwrap());
-                pipe(a.try_clone().unwrap(), b.try_clone().unwrap());
-                pipe(b, a);
+                pipe(a.try_clone().unwrap(), b.try_clone().unwrap(), limit_bps);
+                pipe(b, a, None);
             }
         });
         Proxy {
@@ -206,13 +223,23 @@ impl Proxy {
     }
 }
 
-fn pipe(mut from: TcpStream, mut to: TcpStream) {
+fn pipe(mut from: TcpStream, mut to: TcpStream, limit_bps: Option<u64>) {
     thread::spawn(move || {
-        let mut buf = vec![0u8; 64 * 1024];
+        let mut buf = vec![0u8; 16 * 1024];
+        let mut free_at = Instant::now();
         loop {
             match from.read(&mut buf) {
                 Ok(0) | Err(_) => break,
                 Ok(n) => {
+                    if let Some(bps) = limit_bps {
+                        // serialisation delay of the chunk on a link of `bps`
+                        let now = Instant::now();
+                        free_at =
+                            free_at.max(now) + Duration::from_nanos(n as u64 * 1_000_000_000 / bps);
+                        if free_at > now {
+                            thread::sleep(free_at - now);
+                        }
+                    }
                     if to.write_all(&buf[..n]).is_err() {
                         break;
                     }
