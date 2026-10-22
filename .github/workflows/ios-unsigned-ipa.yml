@@ -104,7 +104,7 @@ jobs:
           plutil -extract CFBundleIdentifier raw /tmp/Info.plist
           plutil -extract CFBundleShortVersionString raw /tmp/Info.plist
           plutil -extract MinimumOSVersion raw /tmp/Info.plist
-          unzip -q "$IPA" -d /tmp/check Payload
+          unzip -q "$IPA" -d /tmp/check
           file /tmp/check/Payload/Punktfunk-iOS.app/Punktfunk-iOS
           codesign -d --entitlements :- /tmp/check/Payload/Punktfunk-iOS.app 2>&1 | head -5 || true
           ls /tmp/check/Payload/Punktfunk-iOS.app/PlugIns 2>/dev/null || echo "PlugIns yok (beklenen)"
