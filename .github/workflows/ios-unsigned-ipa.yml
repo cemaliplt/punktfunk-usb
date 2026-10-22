@@ -1,0 +1,110 @@
+name: ios-unsigned-ipa
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci-ipa]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 180
+    env:
+      XCODE_APP: /Applications/Xcode_26.5.app
+      XCODE_DEV_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.ci-target
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Disk durumu (başlangıç)
+        run: |
+          df -h /
+          du -sh /Applications/Xcode*.app 2>/dev/null | sort -h | tail -5
+
+      - name: Xcode seç ve doğrula
+        run: |
+          test -d "$XCODE_APP" || { echo "::error::$XCODE_APP yok"; ls /Applications; exit 1; }
+          sudo xcode-select -s "$XCODE_DEV_DIR"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos || true
+
+      - name: Rust toolchain ve hedefler
+        run: |
+          rustup --version
+          rustup show
+          rustup target add aarch64-apple-darwin aarch64-apple-ios
+          rustc --version
+          cargo --version
+
+      - name: CMake kontrolü
+        run: |
+          if ! command -v cmake >/dev/null; then brew install cmake; fi
+          cmake --version | head -1
+
+      - name: PunktfunkCore.xcframework (iOS arm64)
+        run: bash scripts/ci/build-xcframework-ios.sh
+
+      - name: Metal toolchain kontrolü
+        run: sh scripts/ci/ensure-metal-toolchain.sh
+
+      - name: iOS arşivi (imzasız)
+        run: |
+          xcodebuild archive \
+            -project clients/apple/Punktfunk.xcodeproj \
+            -scheme Punktfunk-iOS \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Punktfunk-iOS.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            MARKETING_VERSION=0.9.1 \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: İmzasız .ipa paketle (Payload/)
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/Punktfunk-iOS.xcarchive/Products/Applications/Punktfunk-iOS.app"
+          test -d "$APP"
+          STAGE="$RUNNER_TEMP/ipa"
+          rm -rf "$STAGE"; mkdir -p "$STAGE/Payload"
+          ditto "$APP" "$STAGE/Payload/Punktfunk-iOS.app"
+          rm -rf "$STAGE/Payload/Punktfunk-iOS.app/PlugIns"
+          rm -rf "$STAGE/Payload/Punktfunk-iOS.app/_CodeSignature"
+          rm -f  "$STAGE/Payload/Punktfunk-iOS.app/embedded.mobileprovision"
+          mkdir -p dist
+          (cd "$STAGE" && zip -qry "$GITHUB_WORKSPACE/dist/Punktfunk-unsigned.ipa" Payload)
+
+      - name: Artefaktı doğrula
+        run: |
+          set -euo pipefail
+          IPA=dist/Punktfunk-unsigned.ipa
+          ls -lh "$IPA"
+          unzip -l "$IPA" | head -25
+          unzip -p "$IPA" Payload/Punktfunk-iOS.app/Info.plist > /tmp/Info.plist
+          plutil -extract CFBundleIdentifier raw /tmp/Info.plist
+          plutil -extract CFBundleShortVersionString raw /tmp/Info.plist
+          plutil -extract MinimumOSVersion raw /tmp/Info.plist
+          unzip -q "$IPA" -d /tmp/check Payload
+          file /tmp/check/Payload/Punktfunk-iOS.app/Punktfunk-iOS
+          codesign -d --entitlements :- /tmp/check/Payload/Punktfunk-iOS.app 2>&1 | head -5 || true
+          ls /tmp/check/Payload/Punktfunk-iOS.app/PlugIns 2>/dev/null || echo "PlugIns yok (beklenen)"
+
+      - name: Disk durumu (bitiş)
+        run: df -h /
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: punktfunk-unsigned-ipa
+          path: dist/Punktfunk-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
