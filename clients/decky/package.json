@@ -1,0 +1,44 @@
+{
+  "name": "punktfunk-decky",
+  "version": "0.0.1",
+  "description": "SteamOS / Steam Deck Gaming-Mode launcher for the Punktfunk streaming client.",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w",
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "package": "pnpm build && bash scripts/package.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "test": "pnpm typecheck && node --experimental-strip-types scripts/test-merge.ts"
+  },
+  "keywords": [
+    "decky",
+    "steam-deck",
+    "punktfunk",
+    "game-streaming"
+  ],
+  "author": "enrico",
+  "license": "Apache-2.0 OR MIT",
+  "dependencies": {
+    "@decky/api": "^1.1.3",
+    "react-icons": "^5.7.0"
+  },
+  "devDependencies": {
+    "@decky/rollup": "^1.0.2",
+    "@decky/ui": "^4.12.1",
+    "@rollup/rollup-linux-x64-musl": "^4.64.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/webpack": "^5.28.5",
+    "rollup": "^4.64.1",
+    "typescript": "^7.0.2"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "react",
+        "react-dom"
+      ]
+    }
+  }
+}

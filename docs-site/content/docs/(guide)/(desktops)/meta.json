@@ -1,0 +1,11 @@
+{
+  "title": "Linux desktops",
+  "pages": [
+    "kde",
+    "gnome",
+    "gamescope",
+    "hyprland",
+    "niri",
+    "sway"
+  ]
+}

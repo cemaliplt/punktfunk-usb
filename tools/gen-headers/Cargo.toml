@@ -1,0 +1,23 @@
+# Writes the checked-in C headers in include/ from the Rust C ABI. The one writer: no build
+# script touches include/, so an ordinary build leaves the tree clean. CI and
+# scripts/build-xcframework.sh run it, then diff include/.
+[package]
+name = "gen-headers"
+description = "Regenerate include/*.h from the punktfunk C ABI with cbindgen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+cbindgen = "0.29"
+
+[dev-dependencies]
+# `abi_header_hash` compares the generated header with `ABI_HEADER_HASH`.
+punktfunk-core = { path = "../../crates/core/punktfunk-core" }
+
+[lints]
+workspace = true
