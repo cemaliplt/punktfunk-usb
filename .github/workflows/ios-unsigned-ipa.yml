@@ -29,7 +29,8 @@ jobs:
       - name: Xcode seç ve doğrula
         run: |
           DEV_DIR=""
-          for app in /Applications/Xcode.app /Applications/Xcode_*.app /Applications/Xcode-*.app; do
+          # Prefer Xcode 27.1+ for iOS 27.1 SDK (StreamScene.swift fold regions)
+          for app in /Applications/Xcode_27.1*.app /Applications/Xcode_27.2*.app /Applications/Xcode_27*.app /Applications/Xcode.app; do
             case "$app" in *beta*|*Beta*) continue;; esac
             [ -x "$app/Contents/Developer/usr/bin/xcodebuild" ] && DEV_DIR="$app/Contents/Developer" && break
           done
