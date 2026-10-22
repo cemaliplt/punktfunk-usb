@@ -3709,6 +3709,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pf-usb-tunnel"
+version = "0.44.1"
+dependencies = [
+ "socket2",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "pf-v4l2"
 version = "0.44.1"
 dependencies = [

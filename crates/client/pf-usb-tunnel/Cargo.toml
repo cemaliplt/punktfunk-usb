@@ -1,0 +1,45 @@
+[package]
+name = "pf-usb-tunnel"
+description = "UDP-over-TCP tunnel for the USB (usbmuxd) cable: the iPad-side relay, the PC-side bridge and the shared frame/queue code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+# Why this crate exists: design/usb-tunnel (punktfunk-usb-notlar/01-tasarim.md, design (b)).
+# The Punktfunk client speaks ONE UDP flow to the host (UDP 9777), but a usbmuxd cable only
+# carries TCP, and only PC -> iPad. So the iPad app runs the *relay* (listens on a TCP port, and
+# on 127.0.0.1:9777/UDP where the client believes the host is) and the PC runs the *bridge*
+# (connects to the iPad's TCP port through usbmuxd, and re-emits every flow to the real host).
+#
+# Deliberately std-only threads (no tokio, no quinn, no punktfunk-core): the iPad side ends up
+# in the Apple static library, the hot path is two blocking sockets and a queue, and the
+# queue policy (drop, never wait) is easier to get exactly right without an executor.
+# The only third-party dependencies are socket2 (SO_RCVBUF/SO_SNDBUF) and tracing (logs),
+# both already in the workspace graph.
+
+[features]
+# The two binaries (and their log subscriber). The iOS embedder takes the library alone with
+# `default-features = false`.
+default = ["cli"]
+cli = ["dep:tracing-subscriber"]
+
+[dependencies]
+socket2 = "0.6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "ansi"], optional = true }
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "pf-usb-relay"
+path = "src/bin/pf-usb-relay.rs"
+required-features = ["cli"]
+
+[[bin]]
+name = "punktfunk-usb-bridge"
+path = "src/bin/punktfunk-usb-bridge.rs"
+required-features = ["cli"]
