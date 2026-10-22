@@ -64,6 +64,9 @@ public struct StoredHost: Identifiable, Codable, Hashable, Sendable {
     /// Library title id → preset id: what a launch of that title streams with, beating
     /// `presetID`. A dangling id falls through to `presetID`. nil until the first binding.
     public var gamePresets: [String: String]?
+    /// Connects via local USB tunnel relay (127.0.0.1:9777). Optional for forward compatibility;
+    /// nil or false means normal Wi-Fi / LAN connection.
+    public var viaUSB: Bool?
 
     /// How many left-behind addresses a host keeps.
     public static let maxPreviousAddresses = 3
@@ -74,7 +77,7 @@ public struct StoredHost: Identifiable, Codable, Hashable, Sendable {
         macAddresses: [String]? = nil, clipboardSync: Bool? = nil,
         presetID: String? = nil, pinnedPresetIDs: [String]? = nil, addedAt: Date? = nil,
         osChain: String? = nil, previousAddresses: [String]? = nil,
-        gamePresets: [String: String]? = nil
+        gamePresets: [String: String]? = nil, viaUSB: Bool? = nil
     ) {
         self.id = id
         self.name = name
@@ -91,6 +94,7 @@ public struct StoredHost: Identifiable, Codable, Hashable, Sendable {
         self.osChain = osChain
         self.previousAddresses = previousAddresses
         self.gamePresets = gamePresets
+        self.viaUSB = viaUSB
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -98,6 +102,7 @@ public struct StoredHost: Identifiable, Codable, Hashable, Sendable {
         case clipboardSync, presetID, pinnedPresetIDs, addedAt, osChain, previousAddresses
         case pickedProfile
         case gamePresets
+        case viaUSB
         /// Pre-rename keys (design/preset-rename.md): read when the new key is absent, and
         /// written beside it so an older build keeps the bindings.
         case profileID, pinnedProfileIDs
@@ -123,6 +128,7 @@ public struct StoredHost: Identifiable, Codable, Hashable, Sendable {
         previousAddresses = try c.decodeIfPresent([String].self, forKey: .previousAddresses)
         pickedProfile = try c.decodeIfPresent(ProfilePick.self, forKey: .pickedProfile)
         gamePresets = try c.decodeIfPresent([String: String].self, forKey: .gamePresets)
+        viaUSB = try c.decodeIfPresent(Bool.self, forKey: .viaUSB)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -145,10 +151,20 @@ public struct StoredHost: Identifiable, Codable, Hashable, Sendable {
         try c.encodeIfPresent(previousAddresses, forKey: .previousAddresses)
         try c.encodeIfPresent(pickedProfile, forKey: .pickedProfile)
         try c.encodeIfPresent(gamePresets, forKey: .gamePresets)
+        try c.encodeIfPresent(viaUSB, forKey: .viaUSB)
+    }
+        try c.encodeIfPresent(presetID, forKey: .profileID)
+        try c.encodeIfPresent(pinnedPresetIDs, forKey: .pinnedProfileIDs)
+        try c.encodeIfPresent(addedAt, forKey: .addedAt)
+        try c.encodeIfPresent(osChain, forKey: .osChain)
+        try c.encodeIfPresent(previousAddresses, forKey: .previousAddresses)
+        try c.encodeIfPresent(pickedProfile, forKey: .pickedProfile)
+        try c.encodeIfPresent(gamePresets, forKey: .gamePresets)
     }
 
     public var displayName: String { name.isEmpty ? address : name }
     public var effectiveMgmtPort: UInt16 { mgmtPort ?? punktfunkDefaultMgmtPort }
+    public var isViaUSB: Bool { viaUSB ?? false }
     /// Wake-capable, in a form the wake helper accepts (empty when none learned yet).
     public var wakeMacs: [String] { macAddresses ?? [] }
 

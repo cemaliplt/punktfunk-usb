@@ -38,6 +38,9 @@ struct PunktfunkClientApp: App {
         #if DEBUG
         if ScreenshotMode.isActive { return }
         #endif
+        #if os(iOS)
+        USBRelay.shared.start()
+        #endif
         DispatchQueue.global(qos: .utility).async {
             if let identity = (try? ClientIdentityStore.shared.load())?.identity {
                 LibraryClient.warmIdentity(identity)

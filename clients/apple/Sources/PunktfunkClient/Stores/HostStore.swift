@@ -153,7 +153,7 @@ final class HostStore: ObservableObject {
         let target = hosts.first { $0.id == host.id } ?? host
         let pin = target.pinnedSHA256
         if await Self.answers(target.address, target.port, pin: pin) { return true }
-        guard pin != nil else { return false }
+        guard pin != nil, !target.isViaUSB else { return false }
         var others: [(address: String, port: UInt16)] = []
         if let live = discovery.hosts.first(where: { host.matches($0) }) {
             others.append((address: live.host, port: live.port))
@@ -292,6 +292,7 @@ final class HostStore: ObservableObject {
     /// contract as `updateMacs`.
     func updateAddress(_ hostID: UUID, address: String, port: UInt16) {
         guard let i = hosts.firstIndex(where: { $0.id == hostID }),
+              !hosts[i].isViaUSB,
               hosts[i].address != address || hosts[i].port != port else { return }
         var host = hosts[i]
         host.move(to: address, port: port)

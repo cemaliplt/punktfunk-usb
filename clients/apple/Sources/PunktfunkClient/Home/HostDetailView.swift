@@ -199,6 +199,18 @@ struct HostDetailView: View {
         Section {
             HostConnectionFields(host: host) { store.update($0) }
             LabeledContent("Management port", value: String(host.effectiveMgmtPort))
+            #if os(iOS)
+            if host.isViaUSB {
+                LabeledContent("Tunnel", value: "USB cable")
+                if let stats = USBRelay.shared.stats() {
+                    LabeledContent("Carrier", value: stats.carrier_up > 0 ? "Connected" : "Waiting for PC")
+                    LabeledContent("Active flows", value: String(stats.flows_active))
+                    if stats.drop_media_overflow > 0 {
+                        LabeledContent("Dropped packets (overflow)", value: String(stats.drop_media_overflow))
+                    }
+                }
+            }
+            #endif
             #if !os(tvOS)
             Toggle("Share clipboard with this host", isOn: Binding(
                 get: { host.clipboardSync == true },

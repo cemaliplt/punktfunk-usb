@@ -81,8 +81,43 @@
 // `{"Listed": [rows]}`, `"NoProfiles"` or `{"Failed": "why"}`.
 #define PUNKTFUNK_CONSOLE_PUSH_PROFILES 20
 
+// An opaque handle to a running USB relay instance.
+typedef struct PfUsbRelay PfUsbRelay;
+
 // One console. Opaque to C.
 typedef struct PunktfunkConsole PunktfunkConsole;
+
+// Point-in-time snapshot of the USB tunnel relay counters.
+//
+// Every field is an unsigned 64-bit integer, matching `pf_usb_tunnel::Stats`.
+typedef struct {
+    uint64_t carrier_up;
+    uint64_t carriers_total;
+    uint64_t carrier_errors;
+    uint64_t flows_opened;
+    uint64_t flows_closed;
+    uint64_t flows_active;
+    uint64_t tx_frames;
+    uint64_t tx_bytes;
+    uint64_t rx_frames;
+    uint64_t rx_bytes;
+    uint64_t udp_in;
+    uint64_t udp_out;
+    uint64_t drop_media_overflow;
+    uint64_t drop_media_stale;
+    uint64_t drop_quic_overflow;
+    uint64_t drop_no_carrier;
+    uint64_t drop_unknown_flow;
+    uint64_t drop_no_flow;
+    uint64_t drop_oversize;
+    uint64_t udp_send_errors;
+    uint64_t media_q_bytes;
+    uint64_t media_q_peak;
+    uint64_t prio_q_bytes;
+    uint64_t prio_q_peak;
+    uint64_t rtt_us;
+    uint64_t udp_rcvbuf;
+} PfUsbStats;
 
 // Safe-area insets in texture pixels.
 typedef struct {
@@ -95,6 +130,31 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
+
+// Start a USB tunnel relay listening on `tcp_port` and binding `udp_port`.
+//
+// On success, stores an allocated handle into `*out` and returns 0.
+// Returns -1 on null pointer arguments, -2 on bind/socket error, -3 on panic.
+//
+// # Safety
+// `out` must be a valid, writable pointer to a pointer slot.
+int32_t punktfunk_usb_start(uint16_t tcp_port, uint16_t udp_port, PfUsbRelay **out);
+
+// Read counter statistics from the relay into `out`.
+//
+// Returns 0 on success, -1 on null pointers, -2 if stopped, -3 on panic.
+//
+// # Safety
+// `r` must be a valid pointer from `punktfunk_usb_start`. `out` must be writable.
+int32_t punktfunk_usb_stats(const PfUsbRelay *r, PfUsbStats *out);
+
+// Stop the USB relay and free its resources.
+//
+// Idempotent. Safe to call with NULL. After this call, `r` is invalid.
+//
+// # Safety
+// `r` is NULL or was returned by `punktfunk_usb_start` and not freed yet.
+void punktfunk_usb_stop(PfUsbRelay *r);
 
 // Build a console over Swift's Metal device and queue. `options_json` is the bridge's
 // `CreateOptions`. NULL if the JSON or Skia's Metal context fails; the log says which.

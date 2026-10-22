@@ -16,6 +16,10 @@ crate-type = ["staticlib"]
 
 [dependencies]
 punktfunk-ffi = { path = "../../../crates/client/punktfunk-ffi", features = ["quic"] }
+pf-usb-tunnel = { path = "../../../crates/client/pf-usb-tunnel", default-features = false }
+# The shell and USB relay log through `tracing`; with no subscriber, its `log` feature
+# forwards each event to the `log` backend `punktfunk_set_log_callback` installs.
+tracing = { version = "0.1", default-features = false, features = ["std", "log"] }
 
 # The console: the shell every other client shows, drawn through Skia's Metal backend into a
 # texture Swift hands over (`src/console.rs`). `metal` + `ganesh` + `textlayout` = the prebuilt key
@@ -28,9 +32,6 @@ pf-client-core = { path = "../../../crates/client/pf-client-core", default-featu
 skia-safe = { version = "0.153", features = ["metal", "ganesh", "textlayout"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# The shell logs through `tracing`; with no subscriber, its `log` feature forwards each event
-# to the `log` backend `punktfunk_set_log_callback` installs, which hands it to Swift.
-tracing = { version = "0.1", default-features = false, features = ["std", "log"] }
 
 [lints]
 workspace = true

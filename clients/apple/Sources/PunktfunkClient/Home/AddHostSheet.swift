@@ -14,6 +14,9 @@ struct AddHostSheet: View {
     @State private var address = ""
     @State private var port = 9777
     @State private var mac = ""
+    #if os(iOS)
+    @State private var viaUSB = false
+    #endif
     #if !os(tvOS)
     /// Share the clipboard with this host (design clipboard-and-file-transfer.md §5.3). Off by
     /// default; honored only when the host advertises the capability at connect. Absent on tvOS,
@@ -146,6 +149,15 @@ struct AddHostSheet: View {
                 #if !os(tvOS)
                 Toggle("Share clipboard with this host", isOn: $clipboardSync)
                 #endif
+                #if os(iOS)
+                Toggle("Connect via USB cable", isOn: $viaUSB)
+                    .onChange(of: viaUSB) { _, enabled in
+                        if enabled {
+                            address = "127.0.0.1"
+                            port = 9777
+                        }
+                    }
+                #endif
             }
             #if !os(tvOS)
             .formStyle(.grouped)
@@ -198,8 +210,8 @@ struct AddHostSheet: View {
             #endif
         }
         #if os(iOS)
-        // Sized to its content: four fields, the clipboard toggle and the action row.
-        .presentationDetents([.height(392 + 44)])
+        // Sized to its content: four fields, clipboard/USB toggles and the action row.
+        .presentationDetents([.height(440 + 44)])
         .presentationDragIndicator(.visible)
         #elseif os(visionOS)
         .presentationSizing(.form.fitted(horizontal: false, vertical: true))
@@ -219,6 +231,11 @@ struct AddHostSheet: View {
         // nil when off: the key stays absent from the saved JSON (forward-compat, and "never
         // opted in" and "opted out" read the same — off).
         host.clipboardSync = clipboardSync ? true : nil
+        #endif
+        #if os(iOS)
+        if viaUSB {
+            host.viaUSB = true
+        }
         #endif
         onSave(host)
         dismiss()

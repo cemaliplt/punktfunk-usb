@@ -388,10 +388,16 @@ struct ContentView: View {
             switch phase {
             case .background:
                 applyBackgroundPolicy()
+                #if os(iOS)
+                USBRelay.shared.stop()
+                #endif
                 // A kill from the background runs no teardown.
                 presets.flush()
             case .active:
                 model.exitBackground()
+                #if os(iOS)
+                USBRelay.shared.start()
+                #endif
             default:
                 break
             }

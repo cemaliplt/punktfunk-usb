@@ -3,5 +3,7 @@
 
 pub use punktfunk_ffi;
 
+pub mod usb;
+
 #[cfg(target_vendor = "apple")]
 mod console;

@@ -3,7 +3,7 @@ name: ios-unsigned-ipa
 on:
   workflow_dispatch:
   push:
-    branches: [ci-ipa]
+    branches: [ci-ipa, usb-ios]
 
 permissions:
   contents: read
